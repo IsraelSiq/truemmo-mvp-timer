@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Clock } from 'lucide-react'
 import type { EnrichedMVP, KillLog } from '@/types'
 
 interface Props {
@@ -10,16 +10,25 @@ interface Props {
   onClose: () => void
 }
 
+function toLocalDatetimeInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  )
+}
+
 export function KillModal({ item, groupName, defaultKiller, onConfirm, onClose }: Props) {
-  const [killer, setKiller] = useState(defaultKiller)
-  const [note, setNote]     = useState('')
+  const [killer,   setKiller]   = useState(defaultKiller)
+  const [note,     setNote]     = useState('')
+  const [killedAt, setKilledAt] = useState(() => toLocalDatetimeInput(new Date()))
 
   function submit() {
     onConfirm({
       mvp_id:     item.id,
       mvp_name:   item.name,
       killer:     killer.trim() || 'Sem nome',
-      killed_at:  new Date().toISOString(),
+      killed_at:  new Date(killedAt).toISOString(),
       note:       note.trim(),
       group_name: groupName,
     })
@@ -51,6 +60,20 @@ export function KillModal({ item, groupName, defaultKiller, onConfirm, onClose }
               className="w-full bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
             />
           </div>
+
+          <div>
+            <label className="flex items-center gap-1.5 text-rag-muted text-xs mb-1">
+              <Clock size={11} /> Hora da morte
+            </label>
+            <input
+              type="datetime-local"
+              value={killedAt}
+              onChange={e => setKilledAt(e.target.value)}
+              className="w-full bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent [color-scheme:dark]"
+            />
+            <p className="text-rag-muted/70 text-xs mt-1">Ajuste se o boss morreu alguns minutos atrás.</p>
+          </div>
+
           <div>
             <label className="block text-rag-muted text-xs mb-1">Observações</label>
             <textarea
@@ -61,6 +84,7 @@ export function KillModal({ item, groupName, defaultKiller, onConfirm, onClose }
               className="w-full bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent resize-none"
             />
           </div>
+
           <div className="flex gap-2 pt-1">
             <button
               onClick={submit}

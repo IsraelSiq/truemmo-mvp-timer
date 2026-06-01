@@ -9,18 +9,31 @@ import { MVPCard } from '@/components/MVPCard'
 import { KillModal } from '@/components/KillModal'
 import { AISuggestion } from '@/components/AISuggestion'
 import { KillLogPanel } from '@/components/KillLog'
-import type { EnrichedMVP } from '@/types'
+import type { EnrichedMVP, KillStatus } from '@/types'
 import toast from 'react-hot-toast'
+
+type StatusFilter = 'all' | KillStatus
+
+const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+  { value: 'all',           label: 'Todos' },
+  { value: 'window-open',   label: '🟢 Janela aberta' },
+  { value: 'soon',          label: '⏳ Em breve' },
+  { value: 'far',           label: 'Longe' },
+  { value: 'no-record',     label: 'Sem registro' },
+  { value: 'window-passed', label: 'Passou' },
+]
 
 export function Dashboard() {
   const now = useNow()
-  const [player,    setPlayer]    = useState(() => localStorage.getItem('rag-player')     ?? '')
-  const [groupName, setGroupName] = useState(() => localStorage.getItem('rag-group')      ?? 'truemmo-main')
+  const [player,       setPlayer]       = useState(() => localStorage.getItem('rag-player') ?? '')
+  const [groupName,    setGroupName]    = useState(() => localStorage.getItem('rag-group')  ?? 'truemmo-main')
   const { kills, synced, addKill, clearLocal } = useKills(groupName)
-  const [query,       setQuery]       = useState('')
-  const [selected,    setSelected]    = useState<EnrichedMVP | null>(null)
+  const [query,        setQuery]        = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [selected,     setSelected]     = useState<EnrichedMVP | null>(null)
   const [aiSuggestion, setAiSuggestion] = useState('')
-  const [aiLoading,   setAiLoading]   = useState(false)
+  const [aiLoading,    setAiLoading]    = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const enriched = useMemo(() => {
     return MVP_LIST
@@ -29,9 +42,13 @@ export function Dashboard() {
       .sort((a, b) => b.score - a.score || b.priority - a.priority)
   }, [kills, now, query])
 
-  const openCount  = enriched.filter(e => e.status === 'window-open').length
-  const soonCount  = enriched.filter(e => e.status === 'soon').length
-  const topTarget  = enriched.find(e => e.status === 'window-open' || e.status === 'soon')
+  const filtered = useMemo(() =>
+    statusFilter === 'all' ? enriched : enriched.filter(e => e.status === statusFilter)
+  , [enriched, statusFilter])
+
+  const openCount = enriched.filter(e => e.status === 'window-open').length
+  const soonCount = enriched.filter(e => e.status === 'soon').length
+  const topTarget = enriched.find(e => e.status === 'window-open' || e.status === 'soon')
 
   async function handleAsk() {
     setAiLoading(true)
@@ -51,6 +68,17 @@ export function Dashboard() {
     toast.success('Configurações salvas!')
   }
 
+  function handleClearLocal() {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 4000)
+      return
+    }
+    clearLocal()
+    setConfirmClear(false)
+    toast.success('Registros locais apagados.')
+  }
+
   return (
     <div className="min-h-screen bg-rag-bg text-rag-text font-body">
       <header className="border-b border-rag-border bg-rag-surface px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
@@ -67,7 +95,11 @@ export function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${synced ? 'border-green-700/40 bg-green-900/20 text-green-400' : 'border-rag-border bg-rag-surface2 text-rag-muted'}`}>
+          <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${
+            synced
+              ? 'border-green-700/40 bg-green-900/20 text-green-400'
+              : 'border-rag-border bg-rag-surface2 text-rag-muted'
+          }`}>
             <Radio size={11} /> {synced ? 'Realtime ativo' : 'Local apenas'}
           </span>
           <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-rag-blue/40 bg-blue-900/20 text-rag-blue">
@@ -102,18 +134,22 @@ export function Dashboard() {
             className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
           />
           <button
-            onClick={clearLocal}
-            className="bg-rag-surface2 border border-rag-border hover:border-rag-accent/50 text-rag-muted hover:text-rag-text rounded-lg px-3 py-2 text-sm transition-colors"
+            onClick={handleClearLocal}
+            className={`rounded-lg px-3 py-2 text-sm transition-colors border ${
+              confirmClear
+                ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
+                : 'bg-rag-surface2 border-rag-border text-rag-muted hover:border-rag-accent/50 hover:text-rag-text'
+            }`}
           >
-            Limpar registros locais
+            {confirmClear ? '⚠️ Confirmar limpeza?' : 'Limpar registros locais'}
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Janelas abertas',    value: openCount,           color: 'text-green-400' },
-            { label: 'Abrindo em breve',   value: soonCount,           color: 'text-yellow-400' },
-            { label: 'Melhor alvo agora',  value: topTarget?.name ?? '—', color: 'text-rag-accent' },
+            { label: 'Janelas abertas',   value: openCount,              color: 'text-green-400'  },
+            { label: 'Abrindo em breve',  value: soonCount,              color: 'text-yellow-400' },
+            { label: 'Melhor alvo agora', value: topTarget?.name ?? '—', color: 'text-rag-accent'  },
           ].map(kpi => (
             <div key={kpi.label} className="bg-rag-surface border border-rag-border rounded-xl p-4">
               <span className="block text-rag-muted text-xs uppercase tracking-wider mb-1">{kpi.label}</span>
@@ -122,11 +158,38 @@ export function Dashboard() {
           ))}
         </div>
 
+        <div className="flex gap-2 flex-wrap">
+          {STATUS_TABS.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                statusFilter === tab.value
+                  ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
+                  : 'bg-rag-surface border-rag-border text-rag-muted hover:text-rag-text'
+              }`}
+            >
+              {tab.label}
+              {tab.value !== 'all' && (
+                <span className="ml-1.5 text-rag-muted/70">
+                  ({enriched.filter(e => e.status === tab.value).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {enriched.map(item => (
-              <MVPCard key={item.id} item={item} now={now} onKill={setSelected} />
-            ))}
+            {filtered.length === 0 ? (
+              <div className="col-span-full border border-dashed border-rag-border rounded-xl p-10 text-center text-rag-muted text-sm">
+                Nenhum MVP nessa categoria no momento.
+              </div>
+            ) : (
+              filtered.map(item => (
+                <MVPCard key={item.id} item={item} now={now} onKill={setSelected} />
+              ))
+            )}
           </div>
 
           <aside className="bg-rag-surface border border-rag-border rounded-xl p-4 flex flex-col gap-6 h-fit sticky top-6">
@@ -136,7 +199,7 @@ export function Dashboard() {
             <hr className="border-rag-border" />
             <section className="text-xs text-rag-muted flex flex-col gap-1">
               <p>⚠️ App pensado para rodar em cloud (Vercel/Netlify) para evitar conflito com Gepard.</p>
-              <p>Configure as variáveis de ambiente <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_SUPABASE_URL</code>, <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_SUPABASE_ANON_KEY</code> e <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_GEMINI_API_KEY</code>.</p>
+              <p>Configure <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_SUPABASE_URL</code>, <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_SUPABASE_ANON_KEY</code> e <code className="text-rag-text bg-rag-bg px-1 rounded">VITE_GEMINI_API_KEY</code>.</p>
             </section>
           </aside>
         </div>
