@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/monster-img/:id",
+      "destination": "https://www.divine-pride.net/img/monsters/SEA/:id"
+    }
+  ]
+}
