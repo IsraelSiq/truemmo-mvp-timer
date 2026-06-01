@@ -1,35 +1,33 @@
 /**
- * MVP images from divine-pride.net — allows hotlinking.
- * URL pattern: https://www.divine-pride.net/img/monsters/SEA/{ID}
- * IDs from iRO classic monster database.
+ * MVP images via Vercel proxy /api/monster-img/:id
+ * O vercel.json faz rewrite server-side para divine-pride.net,
+ * bypassando o hotlink protection que bloqueia requests do browser.
  */
-const BASE = 'https://www.divine-pride.net/img/monsters/SEA'
-
 export const MVP_IMAGES: Record<string, string> = {
-  'Orc Hero':         `${BASE}/1087`,
-  'Moonlight Flower': `${BASE}/1150`,
-  'Osiris':           `${BASE}/1038`,
-  'Golden Thief Bug': `${BASE}/1086`,
-  'Stormy Knight':    `${BASE}/1251`,
-  'Turtle General':   `${BASE}/1312`,
-  'Dark Lord':        `${BASE}/1272`,
-  'Dracula':          `${BASE}/1389`,
-  'Pharaoh':          `${BASE}/1157`,
-  'Amon Ra':          `${BASE}/1511`,
-  'Evil Snake Lord':  `${BASE}/1419`,
-  'Baphomet':         `${BASE}/1039`,
-  'Eddga':            `${BASE}/1115`,
-  'Drake':            `${BASE}/1112`,
-  'Phreeoni':         `${BASE}/1158`,
-  'Mistress':         `${BASE}/1059`,
-  'Doppelganger':     `${BASE}/1046`,
-  'Maya':             `${BASE}/1147`,
-  'Orc Lord':         `${BASE}/1190`,
-  'Fallen Bishop':    `${BASE}/1871`,
-  'Tao Gunka':        `${BASE}/1583`,
-  'Lord of Death':    `${BASE}/1373`,
-  'Detardeurus':      `${BASE}/1719`,
-  'Atroce':           `${BASE}/1785`,
+  'Orc Hero':         '/api/monster-img/1087',
+  'Moonlight Flower': '/api/monster-img/1150',
+  'Osiris':           '/api/monster-img/1038',
+  'Golden Thief Bug': '/api/monster-img/1086',
+  'Stormy Knight':    '/api/monster-img/1251',
+  'Turtle General':   '/api/monster-img/1312',
+  'Dark Lord':        '/api/monster-img/1272',
+  'Dracula':          '/api/monster-img/1389',
+  'Pharaoh':          '/api/monster-img/1157',
+  'Amon Ra':          '/api/monster-img/1511',
+  'Evil Snake Lord':  '/api/monster-img/1419',
+  'Baphomet':         '/api/monster-img/1039',
+  'Eddga':            '/api/monster-img/1115',
+  'Drake':            '/api/monster-img/1112',
+  'Phreeoni':         '/api/monster-img/1158',
+  'Mistress':         '/api/monster-img/1059',
+  'Doppelganger':     '/api/monster-img/1046',
+  'Maya':             '/api/monster-img/1147',
+  'Orc Lord':         '/api/monster-img/1190',
+  'Fallen Bishop':    '/api/monster-img/1871',
+  'Tao Gunka':        '/api/monster-img/1583',
+  'Lord of Death':    '/api/monster-img/1373',
+  'Detardeurus':      '/api/monster-img/1719',
+  'Atroce':           '/api/monster-img/1785',
 }
 
 export function getMvpImage(name: string): string {
