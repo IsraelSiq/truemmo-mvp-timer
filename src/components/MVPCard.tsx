@@ -1,7 +1,8 @@
-import { Swords } from 'lucide-react'
+import { Swords, MapPin } from 'lucide-react'
 import type { EnrichedMVP } from '@/types'
 import { StatusBadge } from './StatusBadge'
 import { formatRemaining, formatDateTime } from '@/utils/timer'
+import { getMapName } from '@/data/mapNames'
 
 interface Props {
   item: EnrichedMVP
@@ -16,9 +17,21 @@ export function MVPCard({ item, now, onKill }: Props) {
   return (
     <article className="bg-rag-surface border border-rag-border rounded-xl p-4 flex flex-col gap-3 hover:border-rag-accent/50 transition-colors">
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="flex flex-col gap-0.5">
           <h3 className="font-body font-semibold text-rag-text text-base leading-tight">{item.name}</h3>
-          <p className="text-rag-muted text-xs mt-0.5">{item.map} • {item.minRespawn}–{item.maxRespawn} min</p>
+
+          {/* Readable map name with pin icon */}
+          <span className="flex items-center gap-1 text-rag-blue text-xs font-medium">
+            <MapPin size={11} className="shrink-0" />
+            {getMapName(item.map)}
+          </span>
+
+          {/* Technical map ID + respawn range — secondary info */}
+          <span className="text-rag-muted text-xs">
+            <span className="opacity-50">{item.map}</span>
+            {' • '}
+            {item.minRespawn}–{item.maxRespawn} min
+          </span>
         </div>
         <StatusBadge status={item.status} />
       </div>
