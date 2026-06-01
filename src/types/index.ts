@@ -1,5 +1,6 @@
 export interface MVP {
   id: number
+  mobId: number      // mob ID no banco do RO (usado para imagem e referência)
   name: string
   map: string
   minRespawn: number // minutes
