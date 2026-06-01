@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/monster-img/:id",
-      "destination": "https://www.divine-pride.net/img/monsters/SEA/:id"
+      "destination": "https://static.divine-pride.net/images/mobs/gif/:id.gif"
     }
   ]
 }
