@@ -5,7 +5,7 @@ import { SkillTree } from './SkillTree'
 import type { Tier } from '@/data/skillTrees'
 
 export interface AllocatedSkills {
-  [skillId: number]: number // skillId → level alocado
+  [skillId: number]: number
 }
 
 export function SkillSimulator() {
@@ -28,8 +28,7 @@ export function SkillSimulator() {
     }))
   }
 
-  // Pontos usados por tier (calculado sobre as skills carregadas pelo SkillTree)
-  function usedPoints(tier: Tier, skillIds: number[], maxLevels: Record<number, number>) {
+  function usedPoints(_tier: Tier, skillIds: number[], maxLevels: Record<number, number>) {
     return skillIds.reduce((sum, id) => {
       const lvl = allocated[id] ?? 0
       return sum + Math.min(lvl, maxLevels[id] ?? lvl)
