@@ -14,6 +14,10 @@ export function calcWindow(killedAt: Date | string, minRespawn: number, maxRespa
 
 /**
  * Returns the current status of a timer given its window.
+ * Note: after the window expires the caller (enrichMVP) resets
+ * the MVP to 'mvp' (unknown). Here we just return 'far' for
+ * anything that hasn't opened yet, including expired windows
+ * that haven't been cleaned up yet.
  */
 export function getTimerStatus(
   windowStart: Date | string,
@@ -23,7 +27,7 @@ export function getTimerStatus(
   const start = new Date(windowStart)
   const end   = new Date(windowEnd)
 
-  if (isAfter(now, end))   return 'window-passed'
+  if (isAfter(now, end))   return 'far'
   if (isAfter(now, start)) return 'window-open'
   return 'far'
 }
