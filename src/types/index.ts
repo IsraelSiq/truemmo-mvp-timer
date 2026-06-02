@@ -10,6 +10,7 @@ export interface MVP {
   difficulty: 'easy' | 'medium' | 'hard'
   tags: MvpTag[]
   mvpPoints?: number  // pontos concedidos ao matar no TrueMmo
+  image?: string      // URL da imagem do mob (divine-pride.net CDN ou custom)
 }
 
 export type MvpTag =
