@@ -9,13 +9,11 @@ export function useAuth() {
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
 
-    // Sessão atual
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null)
       setLoading(false)
     })
 
-    // Escuta mudanças de auth em tempo real
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
@@ -35,17 +33,28 @@ export function useAuth() {
     if (error) throw error
   }
 
+  async function signInWithGoogle() {
+    if (!supabase) throw new Error('Supabase não configurado')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+    if (error) throw error
+  }
+
   async function signOut() {
     if (!supabase) return
     await supabase.auth.signOut()
   }
 
-  // Nick do usuário: metadata ou parte do email
   const displayName: string =
-    user?.user_metadata?.display_name ??
     user?.user_metadata?.full_name ??
+    user?.user_metadata?.name ??
+    user?.user_metadata?.display_name ??
     user?.email?.split('@')[0] ??
     ''
 
-  return { user, loading, displayName, signInWithEmail, signUpWithEmail, signOut }
+  return { user, loading, displayName, signInWithEmail, signUpWithEmail, signInWithGoogle, signOut }
 }
