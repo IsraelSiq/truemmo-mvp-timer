@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Shield, Radio, Search } from 'lucide-react'
+import { Shield, Radio, Search, LogIn, LogOut, User } from 'lucide-react'
 import { MVP_LIST } from '@/data/mvps'
 import { enrichMVP } from '@/utils/timer'
 import { goalScore } from '@/utils/goalSort'
 import { useKills } from '@/hooks/useKills'
 import { useNow } from '@/hooks/useNow'
+import { useAuth } from '@/hooks/useAuth'
 import { askGemini } from '@/lib/gemini'
 import { MVPCard } from '@/components/MVPCard'
 import { KillModal } from '@/components/KillModal'
 import { AISuggestion } from '@/components/AISuggestion'
 import { KillLogPanel } from '@/components/KillLog'
 import { GoalSelector } from '@/components/GoalSelector'
+import { AuthModal } from '@/components/AuthModal'
 import type { EnrichedMVP, KillLog, KillStatus, GoalMode } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -27,8 +29,8 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
 
 export function Dashboard() {
   const now = useNow()
-  const [player,       setPlayer]       = useState(() => localStorage.getItem('rag-player') ?? '')
-  const [groupName,    setGroupName]    = useState(() => localStorage.getItem('rag-group')  ?? 'truemmo-main')
+  const { user, loading: authLoading, displayName, signOut } = useAuth()
+  const [groupName,    setGroupName]    = useState(() => localStorage.getItem('rag-group') ?? 'truemmo-main')
   const { kills, synced, addKill, clearLocal } = useKills(groupName)
   const [query,        setQuery]        = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -37,6 +39,11 @@ export function Dashboard() {
   const [aiSuggestion, setAiSuggestion] = useState('')
   const [aiLoading,    setAiLoading]    = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [showAuth,     setShowAuth]     = useState(false)
+
+  // Nick: displayName do Supabase ou input manual (fallback offline)
+  const [playerOverride, setPlayerOverride] = useState(() => localStorage.getItem('rag-player') ?? '')
+  const player = displayName || playerOverride
 
   const enriched = useMemo(() => {
     return MVP_LIST
@@ -69,10 +76,13 @@ export function Dashboard() {
     }
   }
 
-  function saveSettings() {
-    localStorage.setItem('rag-player', player)
+  function saveGroup() {
     localStorage.setItem('rag-group', groupName)
-    toast.success('Configurações salvas!')
+    toast.success('Grupo salvo!')
+  }
+
+  function savePlayer() {
+    localStorage.setItem('rag-player', playerOverride)
   }
 
   function handleClearLocal() {
@@ -86,7 +96,14 @@ export function Dashboard() {
     toast.success('Registros locais apagados.')
   }
 
+  // Kill só permitida se logado
+  function handleKillClick(item: EnrichedMVP) {
+    if (!user) { setShowAuth(true); return }
+    setSelected(item)
+  }
+
   function handleEnemyKill(item: EnrichedMVP, killedAt: string) {
+    if (!user) { setShowAuth(true); return }
     const log: KillLog = {
       mvp_id:          item.id,
       mvp_name:        item.name,
@@ -97,7 +114,7 @@ export function Dashboard() {
       killed_by_enemy: true,
     }
     addKill(log)
-    toast.success(`${item.name} marcado como morto por inimigo. Respawn em ${item.minRespawn}–${item.maxRespawn} min.`, { icon: '⚡' })
+    toast.success(`${item.name} marcado como morto por inimigo.`, { icon: '⚡' })
   }
 
   return (
@@ -115,6 +132,7 @@ export function Dashboard() {
             <p className="text-rag-muted text-xs">TRUEMMO · logs em grupo · Gemini AI</p>
           </div>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${
             synced
@@ -126,12 +144,35 @@ export function Dashboard() {
           <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-rag-blue/40 bg-blue-900/20 text-rag-blue">
             <Shield size={11} /> Cloud-ready
           </span>
+
+          {/* Auth */}
+          {authLoading ? null : user ? (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-rag-border bg-rag-surface2 text-rag-muted">
+                <User size={11} /> {displayName}
+              </span>
+              <button
+                onClick={() => signOut()}
+                title="Sair"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-rag-border bg-rag-surface2 text-rag-muted hover:text-rag-text transition-colors"
+              >
+                <LogOut size={11} /> Sair
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-rag-accent/50 bg-rag-accent/10 text-rag-accent hover:bg-rag-accent/20 transition-colors font-semibold"
+            >
+              <LogIn size={11} /> Entrar para registrar kills
+            </button>
+          )}
         </div>
       </header>
 
       <div className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
 
-        {/* Objetivo / Goal Mode */}
+        {/* Objetivo */}
         <GoalSelector value={goalMode} onChange={setGoalMode} />
 
         {/* Busca + Configs */}
@@ -145,17 +186,24 @@ export function Dashboard() {
               className="w-full bg-rag-bg border border-rag-border rounded-lg pl-8 pr-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
             />
           </div>
+          {/* Nick só aparece se não estiver logado */}
+          {!user && (
+            <input
+              id="player-nick"
+              name="player-nick"
+              value={playerOverride}
+              onChange={e => setPlayerOverride(e.target.value)}
+              onBlur={savePlayer}
+              placeholder="Seu nick (sem login)"
+              className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
+            />
+          )}
           <input
-            value={player}
-            onChange={e => setPlayer(e.target.value)}
-            onBlur={saveSettings}
-            placeholder="Seu nick / personagem"
-            className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
-          />
-          <input
+            id="group-name"
+            name="group-name"
             value={groupName}
             onChange={e => setGroupName(e.target.value)}
-            onBlur={saveSettings}
+            onBlur={saveGroup}
             placeholder="Grupo / clã / tag"
             className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
           />
@@ -171,6 +219,19 @@ export function Dashboard() {
           </button>
         </div>
 
+        {/* Banner se não estiver logado */}
+        {!authLoading && !user && (
+          <div
+            onClick={() => setShowAuth(true)}
+            className="cursor-pointer flex items-center gap-3 bg-rag-accent/10 border border-rag-accent/30 rounded-xl px-4 py-3 text-sm text-rag-accent hover:bg-rag-accent/15 transition-colors"
+          >
+            <LogIn size={16} />
+            <span>
+              <strong>Faça login</strong> para registrar kills de MVP. O log de todos os jogadores fica visível para todos!
+            </span>
+          </div>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
@@ -185,7 +246,7 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Filtros de status */}
+        {/* Filtros */}
         <div className="flex gap-2 flex-wrap">
           {STATUS_TABS.map(tab => (
             <button
@@ -211,7 +272,7 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Grid de cards + sidebar */}
+        {/* Grid + sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.length === 0 ? (
@@ -224,7 +285,7 @@ export function Dashboard() {
                   key={item.id}
                   item={item}
                   now={now}
-                  onKill={setSelected}
+                  onKill={handleKillClick}
                   onEnemyKill={handleEnemyKill}
                 />
               ))
@@ -248,6 +309,8 @@ export function Dashboard() {
           onClose={() => setSelected(null)}
         />
       )}
+
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   )
 }
