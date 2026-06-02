@@ -1,160 +1,95 @@
-import { useState } from 'react'
-import { Zap, Plus, Minus, Lock } from 'lucide-react'
-import type { SkillNode as SkillNodeType } from '@/data/skillTrees'
-import type { AllocMap } from '@/hooks/useSkillSimulator'
+import { ChevronUp, ChevronDown, Lock } from 'lucide-react'
 
-interface Props {
-  skill: SkillNodeType
-  alloc: AllocMap
-  isUnlocked: boolean
-  wikiChange?: string[]   // alterações do TrueMmo
-  onAllocate: (id: number, autoPath?: boolean) => void
-  onDeallocate: (id: number) => void
+export interface SkillData {
+  skillId: number
+  name: string
+  maxLevel: number
+  type: number  // 0=passive
+  deps: { skillId: number; minLevel: number }[]
+  changed?: boolean
+  note?: string
 }
 
-export function SkillNode({ skill, alloc, isUnlocked, wikiChange, onAllocate, onDeallocate }: Props) {
-  const [showTip, setShowTip] = useState(false)
-  const level = alloc[skill.id] ?? 0
-  const maxed = level >= skill.maxLevel
-  const hasPoints = level > 0
-  const hasWikiChange = wikiChange && wikiChange.length > 0
+interface Props {
+  skill: SkillData
+  level: number
+  locked: boolean // pré-requisito não satisfeito
+  onChange: (delta: number) => void
+}
 
-  const TIER_RING = {
-    1: 'border-blue-500/60',
-    2: 'border-green-500/60',
-    3: 'border-yellow-500/60',
-    4: 'border-rag-accent/80',
-  }[skill.tier]
-
-  const TIER_GLOW = {
-    1: 'shadow-blue-500/20',
-    2: 'shadow-green-500/20',
-    3: 'shadow-yellow-500/20',
-    4: 'shadow-rag-accent/30',
-  }[skill.tier]
+export function SkillNode({ skill, level, locked, onChange }: Props) {
+  const isPassive  = skill.type === 0
+  const isMaxed    = level >= skill.maxLevel
+  const hasPoints  = level > 0
 
   return (
     <div
-      className="relative flex flex-col items-center gap-1 select-none"
-      style={{ width: 72 }}
-      onMouseEnter={() => setShowTip(true)}
-      onMouseLeave={() => setShowTip(false)}
+      className={`relative rounded-lg border p-3 flex flex-col gap-2 transition-colors ${
+        locked
+          ? 'border-rag-border/50 bg-rag-bg opacity-50'
+          : hasPoints
+            ? 'border-rag-accent/40 bg-rag-accent/5'
+            : 'border-rag-border bg-rag-surface hover:border-rag-accent/30'
+      }`}
     >
-      {/* Ícone da skill */}
-      <div
-        className={`
-          relative w-14 h-14 rounded-xl border-2 flex items-center justify-center cursor-pointer
-          transition-all duration-200
-          ${hasPoints
-            ? `${TIER_RING} bg-rag-surface shadow-lg ${TIER_GLOW} scale-105`
-            : isUnlocked
-              ? 'border-rag-border bg-rag-bg hover:border-rag-accent/50 hover:bg-rag-surface'
-              : 'border-rag-border/40 bg-rag-bg/50 opacity-50 cursor-not-allowed'
-          }
-        `}
-        onClick={() => onAllocate(skill.id)}
-      >
-        <SkillIcon skillId={skill.id} name={skill.name} hasPoints={hasPoints} isUnlocked={isUnlocked} />
+      {/* Badge TRUEMMO */}
+      {skill.changed && (
+        <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-bold">
+          TrueMmo
+        </span>
+      )}
 
-        {/* Nível alocado */}
-        {hasPoints && (
-          <span className={`
-            absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full text-[10px] font-bold
-            flex items-center justify-center border
-            ${maxed ? 'bg-rag-accent border-rag-accent text-white' : 'bg-rag-surface border-rag-border text-rag-text'}
-          `}>
-            {level}
-          </span>
-        )}
-
-        {/* Lock icon */}
-        {!isUnlocked && !hasPoints && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-rag-bg/60">
-            <Lock size={14} className="text-rag-muted/50" />
-          </div>
-        )}
-
-        {/* Badge TrueMmo */}
-        {hasWikiChange && (
-          <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-yellow-500 border border-rag-bg flex items-center justify-center">
-            <Zap size={9} className="text-rag-bg" />
-          </div>
-        )}
+      <div className="flex items-start gap-2 pr-10">
+        {/* Ícone tipo */}
+        <span className={`mt-0.5 text-xs px-1.5 py-0.5 rounded border font-mono ${
+          isPassive
+            ? 'border-gray-600 text-gray-400'
+            : 'border-rag-accent/40 text-rag-accent'
+        }`}>
+          {isPassive ? 'P' : 'A'}
+        </span>
+        <span className="text-rag-text text-xs font-semibold leading-snug flex-1">
+          {skill.name}
+        </span>
       </div>
 
-      {/* Nome da skill */}
-      <span className={`text-center leading-tight text-[10px] max-w-[72px] ${
-        hasPoints ? 'text-rag-text font-semibold' : 'text-rag-muted'
-      }`}>
-        {skill.name}
-      </span>
+      {/* Nota do servidor */}
+      {skill.note && (
+        <p className="text-yellow-400/80 text-[10px] leading-snug">{skill.note}</p>
+      )}
 
-      {/* +/- botões rápidos */}
-      {hasPoints && (
-        <div className="flex gap-1">
-          <button
-            onClick={e => { e.stopPropagation(); onDeallocate(skill.id) }}
-            className="w-5 h-5 rounded bg-rag-surface border border-rag-border text-rag-muted hover:text-red-400 hover:border-red-700/40 flex items-center justify-center transition-colors"
-          >
-            <Minus size={9} />
-          </button>
-          {!maxed && (
-            <button
-              onClick={e => { e.stopPropagation(); onAllocate(skill.id) }}
-              className="w-5 h-5 rounded bg-rag-surface border border-rag-border text-rag-muted hover:text-green-400 hover:border-green-700/40 flex items-center justify-center transition-colors"
-            >
-              <Plus size={9} />
-            </button>
-          )}
+      {/* Pré-requisitos */}
+      {skill.deps.length > 0 && (
+        <div className="text-[10px] text-rag-muted">
+          {locked && <Lock size={9} className="inline mr-1" />}
+          Req: {skill.deps.map(d => `Skill ${d.skillId} Lv${d.minLevel}`).join(', ')}
         </div>
       )}
 
-      {/* Tooltip */}
-      {showTip && (
-        <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 w-52 bg-rag-surface border border-rag-border rounded-xl p-3 shadow-2xl pointer-events-none">
-          <p className="text-rag-text text-xs font-bold mb-1">{skill.name}</p>
-          <p className="text-rag-muted text-xs">Nível: {level}/{skill.maxLevel}</p>
-          {skill.requires.length > 0 && (
-            <div className="mt-1.5 pt-1.5 border-t border-rag-border/50">
-              <p className="text-rag-muted text-[10px] uppercase tracking-wide mb-1">Pré-requisitos</p>
-              {skill.requires.map(req => (
-                <p key={req.id} className="text-rag-muted text-xs">• Skill #{req.id} lv {req.minLevel}+</p>
-              ))}
-            </div>
-          )}
-          {hasWikiChange && (
-            <div className="mt-1.5 pt-1.5 border-t border-yellow-700/40">
-              <p className="text-yellow-400 text-[10px] font-bold uppercase tracking-wide mb-1">✦ TrueMmo</p>
-              {wikiChange!.map((c, i) => (
-                <p key={i} className="text-rag-muted text-[10px]">{c}</p>
-              ))}
-            </div>
-          )}
-          {!isUnlocked && (
-            <p className="mt-1.5 text-red-400 text-[10px]">🔒 Clique para auto-desbloquear</p>
-          )}
-        </div>
-      )}
+      {/* Controle de nível */}
+      <div className="flex items-center gap-2 mt-auto">
+        <button
+          disabled={locked || level <= 0}
+          onClick={() => onChange(-1)}
+          className="w-6 h-6 flex items-center justify-center rounded border border-rag-border bg-rag-bg text-rag-muted hover:text-rag-text hover:border-rag-accent/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronDown size={12} />
+        </button>
+
+        <span className={`tabular-nums text-sm font-bold flex-1 text-center ${
+          isMaxed ? 'text-green-400' : hasPoints ? 'text-rag-accent' : 'text-rag-muted'
+        }`}>
+          {level} <span className="text-rag-muted font-normal text-xs">/ {skill.maxLevel}</span>
+        </span>
+
+        <button
+          disabled={locked || isMaxed}
+          onClick={() => onChange(+1)}
+          className="w-6 h-6 flex items-center justify-center rounded border border-rag-border bg-rag-bg text-rag-muted hover:text-rag-text hover:border-rag-accent/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronUp size={12} />
+        </button>
+      </div>
     </div>
-  )
-}
-
-// Ícone da skill via Divine Pride CDN
-function SkillIcon({ skillId, name, hasPoints, isUnlocked }: { skillId: number; name: string; hasPoints: boolean; isUnlocked: boolean }) {
-  const [err, setErr] = useState(false)
-  if (err) {
-    return <Zap size={22} className={hasPoints ? 'text-rag-accent' : 'text-rag-muted/40'} />
-  }
-  return (
-    <img
-      src={`https://static.divine-pride.net/images/skills/${skillId}.png`}
-      alt={name}
-      width={36}
-      height={36}
-      loading="lazy"
-      className={`object-contain transition-opacity ${isUnlocked || hasPoints ? 'opacity-100' : 'opacity-30'}`}
-      style={{ imageRendering: 'pixelated' }}
-      onError={() => setErr(true)}
-    />
   )
 }
