@@ -1,4 +1,5 @@
-import { X, Swords } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Swords, Skull } from 'lucide-react'
 import { MVP_RESISTANCES } from '@/data/mvpResistances'
 import type { EnrichedMVP } from '@/types'
 
@@ -46,8 +47,29 @@ function ElementBadge({ name }: { name: string }) {
   )
 }
 
+function MobImage({ src, name }: { src?: string; name: string }) {
+  const [err, setErr] = useState(false)
+  useEffect(() => { setErr(false) }, [src])
+  if (!src || err) {
+    return (
+      <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-rag-bg border border-rag-border shrink-0">
+        <Skull size={32} className="text-rag-muted/30" />
+      </div>
+    )
+  }
+  return (
+    <img
+      src={src}
+      alt={name}
+      className="w-20 h-20 object-contain rounded-xl bg-rag-bg border border-rag-border shrink-0 drop-shadow-lg"
+      style={{ imageRendering: 'pixelated' }}
+      loading="lazy"
+      onError={() => setErr(true)}
+    />
+  )
+}
+
 function useCountdown(item: EnrichedMVP) {
-  // Retorna string do próximo spawn ou null se não há kill registrada
   const killed = (item as any).lastKill as number | undefined
   if (!killed) return null
   const now = Date.now()
@@ -76,22 +98,26 @@ export function MvpDetailsPanel({ item, onClose, onRegisterKill }: Props) {
         style={{ animation: 'slideUp 220ms cubic-bezier(0.16,1,0.3,1)' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-rag-border">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-body font-bold text-rag-text text-base">{item.name}</h2>
+        {/* Header com imagem */}
+        <div className="flex items-center gap-4 px-5 py-4 border-b border-rag-border">
+          <MobImage src={item.image} name={item.name} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-body font-bold text-rag-text text-base leading-tight">{item.name}</h2>
               {diff && (
                 <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${DIFFICULTY_STYLE[diff] ?? ''}`}>
                   {DIFFICULTY_LABEL[diff] ?? diff}
                 </span>
               )}
             </div>
-            <p className="text-rag-muted text-xs mt-0.5">Mob ID {item.mobId} · {item.map}</p>
+            <p className="text-rag-muted text-xs mt-0.5 truncate">Mob ID {item.mobId} · {item.map}</p>
+            {item.mvpPoints != null && (
+              <p className="text-rag-accent text-xs font-semibold mt-0.5">★ {item.mvpPoints} MVP Points</p>
+            )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-rag-surface2 text-rag-muted hover:text-rag-text transition-colors"
+            className="p-1.5 rounded-lg hover:bg-rag-surface2 text-rag-muted hover:text-rag-text transition-colors shrink-0"
             aria-label="Fechar"
           >
             <X size={16} />
