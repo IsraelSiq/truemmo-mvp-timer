@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Shield, Radio, Search, LogIn, LogOut, User, Zap } from 'lucide-react'
+import { Shield, Radio, Search, LogIn, LogOut, User, Zap, GitBranch } from 'lucide-react'
 import { MVP_LIST } from '@/data/mvps'
 import { enrichMVP } from '@/utils/timer'
 import { goalScore } from '@/utils/goalSort'
@@ -14,10 +14,12 @@ import { KillLogPanel } from '@/components/KillLog'
 import { GoalSelector } from '@/components/GoalSelector'
 import { AuthModal } from '@/components/AuthModal'
 import { SkillChangesPanel } from '@/components/SkillChangesPanel'
+import { SkillSimulator } from '@/components/SkillSimulator'
 import type { EnrichedMVP, KillLog, KillStatus, GoalMode } from '@/types'
 import toast from 'react-hot-toast'
 
 type StatusFilter = 'mvp-alive' | KillStatus
+type MainTab = 'mvp' | 'skills'
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'mvp-alive',   label: 'MVP' },
@@ -40,6 +42,7 @@ export function Dashboard() {
   const [confirmClear, setConfirmClear] = useState(false)
   const [showAuth,     setShowAuth]     = useState(false)
   const [showSkills,   setShowSkills]   = useState(false)
+  const [mainTab,      setMainTab]      = useState<MainTab>('mvp')
 
   const [playerOverride, setPlayerOverride] = useState(() => localStorage.getItem('rag-player') ?? '')
   const player = displayName || playerOverride
@@ -142,12 +145,12 @@ export function Dashboard() {
             <Shield size={11} /> Cloud-ready
           </span>
 
-          {/* Botão Skills */}
+          {/* Botão Skills Changes */}
           <button
             onClick={() => setShowSkills(true)}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-rag-accent/40 bg-rag-accent/10 text-rag-accent hover:bg-rag-accent/20 transition-colors font-semibold"
           >
-            <Zap size={11} /> Skills
+            <Zap size={11} /> Mudanças
           </button>
 
           {authLoading ? null : user ? (
@@ -174,123 +177,155 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
-
-        <GoalSelector value={goalMode} onChange={setGoalMode} />
-
-        <div className="bg-rag-surface border border-rag-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-rag-muted" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar MVP ou mapa..."
-              className="w-full bg-rag-bg border border-rag-border rounded-lg pl-8 pr-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
-            />
-          </div>
-          {!user && (
-            <input
-              id="player-nick"
-              name="player-nick"
-              value={playerOverride}
-              onChange={e => setPlayerOverride(e.target.value)}
-              onBlur={savePlayer}
-              placeholder="Seu nick (sem login)"
-              className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
-            />
-          )}
-          <input
-            id="group-name"
-            name="group-name"
-            value={groupName}
-            onChange={e => setGroupName(e.target.value)}
-            onBlur={saveGroup}
-            placeholder="Grupo / clã / tag"
-            className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
-          />
-          <button
-            onClick={handleClearLocal}
-            className={`rounded-lg px-3 py-2 text-sm transition-colors border ${
-              confirmClear
-                ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
-                : 'bg-rag-surface2 border-rag-border text-rag-muted hover:border-rag-accent/50 hover:text-rag-text'
-            }`}
-          >
-            {confirmClear ? '⚠️ Confirmar limpeza?' : 'Limpar registros locais'}
-          </button>
-        </div>
-
-        {!authLoading && !user && (
-          <div
-            onClick={() => setShowAuth(true)}
-            className="cursor-pointer flex items-center gap-3 bg-rag-accent/10 border border-rag-accent/30 rounded-xl px-4 py-3 text-sm text-rag-accent hover:bg-rag-accent/15 transition-colors"
-          >
-            <LogIn size={16} />
-            <span>
-              <strong>Faça login</strong> para registrar kills de MVP. O log de todos os jogadores fica visível para todos!
-            </span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { label: 'Janelas abertas',   value: openCount,              color: 'text-green-400'  },
-            { label: 'Abrindo em breve',  value: soonCount,              color: 'text-yellow-400' },
-            { label: 'Melhor alvo agora', value: topTarget?.name ?? '—', color: 'text-rag-accent'  },
-          ].map(kpi => (
-            <div key={kpi.label} className="bg-rag-surface border border-rag-border rounded-xl p-4">
-              <span className="block text-rag-muted text-xs uppercase tracking-wider mb-1">{kpi.label}</span>
-              <strong className={`text-xl font-bold tabular-nums ${kpi.color}`}>{kpi.value}</strong>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          {STATUS_TABS.map(tab => (
+      {/* Tabs principais */}
+      <div className="border-b border-rag-border bg-rag-surface px-6">
+        <div className="flex gap-1 max-w-screen-xl mx-auto">
+          {([
+            { value: 'mvp',    label: 'MVP Timer',        icon: <Shield size={13} /> },
+            { value: 'skills', label: 'Skill Simulator',  icon: <GitBranch size={13} /> },
+          ] as { value: MainTab; label: string; icon: React.ReactNode }[]).map(tab => (
             <button
               key={tab.value}
-              onClick={() => setStatusFilter(tab.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                statusFilter === tab.value
-                  ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
-                  : 'bg-rag-surface border-rag-border text-rag-muted hover:text-rag-text'
+              onClick={() => setMainTab(tab.value)}
+              className={`flex items-center gap-1.5 text-xs px-4 py-3 border-b-2 transition-colors font-semibold ${
+                mainTab === tab.value
+                  ? 'border-rag-accent text-rag-accent'
+                  : 'border-transparent text-rag-muted hover:text-rag-text'
               }`}
             >
-              {tab.label}
-              {tab.value !== 'mvp-alive' && (
-                <span className="ml-1.5 text-rag-muted/70">
-                  ({enriched.filter(e => e.status === tab.value).length})
-                </span>
-              )}
+              {tab.icon} {tab.label}
             </button>
           ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.length === 0 ? (
-              <div className="col-span-full border border-dashed border-rag-border rounded-xl p-10 text-center text-rag-muted text-sm">
-                Nenhum MVP nessa categoria no momento.
-              </div>
-            ) : (
-              filtered.map(item => (
-                <MVPCard
-                  key={item.id}
-                  item={item}
-                  now={now}
-                  onKill={handleKillClick}
-                  onEnemyKill={handleEnemyKill}
+      <div className="max-w-screen-xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+
+        {/* ─── Tab: MVP Timer ───────────────────────────────────────────── */}
+        {mainTab === 'mvp' && (
+          <>
+            <GoalSelector value={goalMode} onChange={setGoalMode} />
+
+            <div className="bg-rag-surface border border-rag-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-rag-muted" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar MVP ou mapa..."
+                  className="w-full bg-rag-bg border border-rag-border rounded-lg pl-8 pr-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
                 />
-              ))
-            )}
-          </div>
+              </div>
+              {!user && (
+                <input
+                  id="player-nick"
+                  name="player-nick"
+                  value={playerOverride}
+                  onChange={e => setPlayerOverride(e.target.value)}
+                  onBlur={savePlayer}
+                  placeholder="Seu nick (sem login)"
+                  className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
+                />
+              )}
+              <input
+                id="group-name"
+                name="group-name"
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+                onBlur={saveGroup}
+                placeholder="Grupo / clã / tag"
+                className="bg-rag-bg border border-rag-border rounded-lg px-3 py-2 text-rag-text text-sm outline-none focus:border-rag-accent"
+              />
+              <button
+                onClick={handleClearLocal}
+                className={`rounded-lg px-3 py-2 text-sm transition-colors border ${
+                  confirmClear
+                    ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
+                    : 'bg-rag-surface2 border-rag-border text-rag-muted hover:border-rag-accent/50 hover:text-rag-text'
+                }`}
+              >
+                {confirmClear ? '⚠️ Confirmar limpeza?' : 'Limpar registros locais'}
+              </button>
+            </div>
 
-          <aside className="bg-rag-surface border border-rag-border rounded-xl p-4 flex flex-col gap-6 h-fit sticky top-6">
-            <AISuggestion suggestion={aiSuggestion} loading={aiLoading} onAsk={handleAsk} />
-            <hr className="border-rag-border" />
-            <KillLogPanel kills={kills} groupName={groupName} />
-          </aside>
-        </div>
+            {!authLoading && !user && (
+              <div
+                onClick={() => setShowAuth(true)}
+                className="cursor-pointer flex items-center gap-3 bg-rag-accent/10 border border-rag-accent/30 rounded-xl px-4 py-3 text-sm text-rag-accent hover:bg-rag-accent/15 transition-colors"
+              >
+                <LogIn size={16} />
+                <span>
+                  <strong>Faça login</strong> para registrar kills de MVP. O log de todos os jogadores fica visível para todos!
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { label: 'Janelas abertas',   value: openCount,              color: 'text-green-400'  },
+                { label: 'Abrindo em breve',  value: soonCount,              color: 'text-yellow-400' },
+                { label: 'Melhor alvo agora', value: topTarget?.name ?? '—', color: 'text-rag-accent'  },
+              ].map(kpi => (
+                <div key={kpi.label} className="bg-rag-surface border border-rag-border rounded-xl p-4">
+                  <span className="block text-rag-muted text-xs uppercase tracking-wider mb-1">{kpi.label}</span>
+                  <strong className={`text-xl font-bold tabular-nums ${kpi.color}`}>{kpi.value}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              {STATUS_TABS.map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => setStatusFilter(tab.value)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    statusFilter === tab.value
+                      ? 'bg-rag-accent/20 border-rag-accent text-rag-accent font-bold'
+                      : 'bg-rag-surface border-rag-border text-rag-muted hover:text-rag-text'
+                  }`}
+                >
+                  {tab.value !== 'mvp-alive' && (
+                    <span className="ml-1.5 text-rag-muted/70">
+                      ({enriched.filter(e => e.status === tab.value).length})
+                    </span>
+                  )}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.length === 0 ? (
+                  <div className="col-span-full border border-dashed border-rag-border rounded-xl p-10 text-center text-rag-muted text-sm">
+                    Nenhum MVP nessa categoria no momento.
+                  </div>
+                ) : (
+                  filtered.map(item => (
+                    <MVPCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      onKill={handleKillClick}
+                      onEnemyKill={handleEnemyKill}
+                    />
+                  ))
+                )}
+              </div>
+
+              <aside className="bg-rag-surface border border-rag-border rounded-xl p-4 flex flex-col gap-6 h-fit sticky top-6">
+                <AISuggestion suggestion={aiSuggestion} loading={aiLoading} onAsk={handleAsk} />
+                <hr className="border-rag-border" />
+                <KillLogPanel kills={kills} groupName={groupName} />
+              </aside>
+            </div>
+          </>
+        )}
+
+        {/* ─── Tab: Skill Simulator ─────────────────────────────────────── */}
+        {mainTab === 'skills' && (
+          <SkillSimulator />
+        )}
       </div>
 
       {selected && (
