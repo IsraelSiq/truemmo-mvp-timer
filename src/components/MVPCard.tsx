@@ -5,7 +5,6 @@ import { StatusBadge } from './StatusBadge'
 import { MvpDetailsPanel } from './MvpDetailsPanel'
 import { formatRemaining, formatDateTime } from '@/utils/timer'
 import { getMapName } from '@/data/mapNames'
-import { getMvpImage } from '@/data/mvpImages'
 
 interface Props {
   item: EnrichedMVP
@@ -40,7 +39,6 @@ function toLocalDatetimeInput(date: Date): string {
 export function MVPCard({ item, now, onKill, onEnemyKill }: Props) {
   const minRemaining = item.minRespawnDate ? item.minRespawnDate.getTime() - now : 0
   const maxRemaining = item.maxRespawnDate ? item.maxRespawnDate.getTime() - now : 0
-  const imgSrc = getMvpImage(item.name)
   const diff = DIFFICULTY_LABEL[item.difficulty]
 
   const [showEnemyForm, setShowEnemyForm] = useState(false)
@@ -52,7 +50,6 @@ export function MVPCard({ item, now, onKill, onEnemyKill }: Props) {
     setShowEnemyForm(false)
   }
 
-  // MVP sem registro — sem dados de respawn
   const noRecord = item.status === 'mvp'
 
   return (
@@ -61,9 +58,9 @@ export function MVPCard({ item, now, onKill, onEnemyKill }: Props) {
 
         {/* Banner imagem */}
         <div className="relative bg-rag-bg border-b border-rag-border flex items-center justify-center h-24 overflow-hidden">
-          {imgSrc ? (
+          {item.image ? (
             <img
-              src={imgSrc}
+              src={item.image}
               alt={item.name}
               className="h-20 w-auto object-contain drop-shadow-lg"
               style={{ imageRendering: 'pixelated' }}
@@ -109,7 +106,7 @@ export function MVPCard({ item, now, onKill, onEnemyKill }: Props) {
             ))}
           </div>
 
-          {/* Timers — só aparece se tiver registro */}
+          {/* Timers */}
           {!noRecord && (
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-rag-bg rounded-lg p-2 border border-rag-border">
@@ -133,7 +130,7 @@ export function MVPCard({ item, now, onKill, onEnemyKill }: Props) {
             </p>
           )}
 
-          {/* Barra de progresso — só com registro */}
+          {/* Barra de progresso */}
           {!noRecord && (
             <div className="h-1.5 bg-rag-bg rounded-full overflow-hidden border border-rag-border">
               <div
