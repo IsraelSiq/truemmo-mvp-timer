@@ -19,11 +19,10 @@ import toast from 'react-hot-toast'
 type StatusFilter = 'all' | KillStatus
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: 'all',          label: 'Todos' },
-  { value: 'mvp',          label: '⚪ MVP' },
-  { value: 'window-open',  label: '🟢 Janela Aberta' },
-  { value: 'soon',         label: '🔵 Em Breve' },
-  { value: 'far',          label: '🔴 Longe' },
+  { value: 'all',         label: 'Todos' },
+  { value: 'window-open', label: '🟢 Janela Aberta' },
+  { value: 'soon',        label: '🔵 Em Breve' },
+  { value: 'far',         label: '🔴 Longe' },
 ]
 
 export function Dashboard() {
@@ -235,7 +234,6 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Filtros de status */}
         <div className="flex gap-2 flex-wrap">
           {STATUS_TABS.map(tab => (
             <button
