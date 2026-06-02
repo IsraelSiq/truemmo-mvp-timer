@@ -1,15 +1,38 @@
 import type { KillLog, KillStatus, EnrichedMVP, MVP } from '@/types'
 
-export function getStatus(killAt: string | null, min: number, max: number, now: number): KillStatus {
-  // No record = assume alive and roaming (not "unknown")
-  if (!killAt) return 'alive'
-  const minTime = new Date(killAt).getTime() + min * 60_000
-  const maxTime = new Date(killAt).getTime() + max * 60_000
-  if (now < minTime) {
-    return (minTime - now) <= 15 * 60_000 ? 'soon' : 'far'
-  }
-  if (now <= maxTime) return 'window-open'
-  return 'window-passed'
+const SOON_WINDOW_MS  = 5 * 60_000  // 5 min: limiar "em breve"
+const STALE_AFTER_MS  = 5 * 60_000  // 5 min após janela máxima → dado obsoleto
+
+/**
+ * Regras de status (4 estados):
+ *
+ * Sem registro                              → 'mvp'
+ * Passou >5 min da janela máxima            → 'mvp'  (dado obsoleto)
+ * Dentro da janela OU nasceu < 5 min atrás  → 'window-open'
+ * Falta 0–5 min para janela mínima          → 'soon'
+ * Falta >5 min para janela mínima           → 'far'
+ */
+export function getStatus(
+  killAt: string | null,
+  min: number,
+  max: number,
+  now: number,
+): KillStatus {
+  if (!killAt) return 'mvp'
+
+  const killedAt = new Date(killAt).getTime()
+  const minTime  = killedAt + min * 60_000
+  const maxTime  = killedAt + max * 60_000
+
+  // Dado obsoleto: passou mais de 5 min além da janela máxima
+  if (now > maxTime + STALE_AFTER_MS) return 'mvp'
+
+  // Dentro da janela de respawn (entre min e max) OU acabou de nascer (até 5 min após max)
+  if (now >= minTime) return 'window-open'
+
+  // Ainda não chegou na janela mínima
+  const timeUntilMin = minTime - now
+  return timeUntilMin <= SOON_WINDOW_MS ? 'soon' : 'far'
 }
 
 export function formatRemaining(ms: number): string {
@@ -36,7 +59,7 @@ export function enrichMVP(mvp: MVP, logs: KillLog[], now: number): EnrichedMVP {
     ? new Date(new Date(latest.killed_at).getTime() + mvp.maxRespawn * 60_000)
     : null
 
-  const totalWindowMs = Math.max(1, (mvp.maxRespawn - mvp.minRespawn) * 60_000)
+  const totalWindowMs   = Math.max(1, (mvp.maxRespawn - mvp.minRespawn) * 60_000)
   const elapsedSinceMin = latest
     ? now - (new Date(latest.killed_at).getTime() + mvp.minRespawn * 60_000)
     : 0
@@ -45,11 +68,10 @@ export function enrichMVP(mvp: MVP, logs: KillLog[], now: number): EnrichedMVP {
     : 0
 
   const score = (() => {
-    if (!latest) return mvp.priority * 3  // alive = moderate score, sorted by priority
-    if (status === 'window-open')  return 100 + mvp.priority * 10
-    if (status === 'soon')         return 70  + mvp.priority * 8
-    if (status === 'far')          return 25  + mvp.priority * 5
-    return 10
+    if (status === 'window-open') return 100 + mvp.priority * 10
+    if (status === 'soon')        return  70 + mvp.priority * 8
+    if (status === 'far')         return  25 + mvp.priority * 5
+    return mvp.priority * 3  // 'mvp' — sem dados
   })()
 
   return { ...mvp, latest, status, minRespawnDate, maxRespawnDate, windowProgress, score }

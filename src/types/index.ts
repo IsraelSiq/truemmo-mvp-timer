@@ -7,25 +7,29 @@ export interface MVP {
   maxRespawn: number // minutes
   priority: number   // 1-10
   notes: string
-  difficulty: 'easy' | 'medium' | 'hard'  // dificuldade de matar solo/duo
-  tags: MvpTag[]                           // características do MVP
+  difficulty: 'easy' | 'medium' | 'hard'
+  tags: MvpTag[]
 }
 
 export type MvpTag =
-  | 'solo'        // pode ser morto solo
-  | 'group'       // recomenda grupo
-  | 'high-drop'   // card de alto valor
-  | 'fast'        // respawn <= 70 min
-  | 'field'       // spawn em field (sem dungeon)
-  | 'disputed'    // alta disputa de outros jogadores
+  | 'solo'
+  | 'group'
+  | 'high-drop'
+  | 'fast'
+  | 'field'
+  | 'disputed'
 
-export type KillStatus =
-  | 'alive'         // no record — assumed alive/roaming
-  | 'no-record'     // legacy alias, treated same as alive
-  | 'far'
-  | 'soon'
-  | 'window-open'
-  | 'window-passed'
+/**
+ * 4 estados possíveis:
+ *
+ * 'mvp'          — sem registro de morte (desconhecido)
+ * 'window-open'  — morte registrada + nasceu há menos de 5 min
+ * 'soon'         — morte registrada + nasce em 0–5 min
+ * 'far'          — morte registrada + falta > 5 min
+ *
+ * Se passou mais de 5 min após a janela máxima → volta a 'mvp' (dado obsoleto)
+ */
+export type KillStatus = 'mvp' | 'window-open' | 'soon' | 'far'
 
 export interface KillLog {
   id?: string
@@ -36,7 +40,7 @@ export interface KillLog {
   note: string
   group_name: string
   created_at?: string
-  killed_by_enemy?: boolean  // true = killed by rival guild, not us
+  killed_by_enemy?: boolean
 }
 
 export interface EnrichedMVP extends MVP {
@@ -50,11 +54,11 @@ export interface EnrichedMVP extends MVP {
 
 // ── Objetivo / Modo de jogo ──────────────────────────────────────────────────
 export type GoalMode =
-  | 'default'       // comportamento padrão (score geral)
-  | 'mvp-points'    // farmar MVP Points: prioriza fáceis, solos, respawn curto
-  | 'best-drops'    // focar nos cards mais valiosos
-  | 'fast-rotation' // manter o grupo ocupado: respawn mais curto primeiro
-  | 'group-hunt'    // caçada em grupo: MVPs que exigem ou se beneficiam de grupo
+  | 'default'
+  | 'mvp-points'
+  | 'best-drops'
+  | 'fast-rotation'
+  | 'group-hunt'
 
 export interface GoalConfig {
   mode: GoalMode
@@ -64,34 +68,9 @@ export interface GoalConfig {
 }
 
 export const GOAL_CONFIGS: GoalConfig[] = [
-  {
-    mode: 'default',
-    label: 'Padrão',
-    description: 'Prioridade geral — janelas abertas primeiro.',
-    emoji: '⚔️',
-  },
-  {
-    mode: 'mvp-points',
-    label: 'Farmar MVP Points',
-    description: 'Mais fáceis e rápidos primeiro — maximize kills por hora.',
-    emoji: '🎯',
-  },
-  {
-    mode: 'best-drops',
-    label: 'Melhores Drops',
-    description: 'Foca nos MVPs com cards de alto valor.',
-    emoji: '💎',
-  },
-  {
-    mode: 'fast-rotation',
-    label: 'Rotação Rápida',
-    description: 'Respawn curto em primeiro — grupo sempre em movimento.',
-    emoji: '⚡',
-  },
-  {
-    mode: 'group-hunt',
-    label: 'Caçada em Grupo',
-    description: 'MVPs que valem mobilizar o grupo inteiro.',
-    emoji: '🛡️',
-  },
+  { mode: 'default',       label: 'Padrão',           description: 'Prioridade geral — janelas abertas primeiro.',                emoji: '⚔️' },
+  { mode: 'mvp-points',    label: 'Farmar MVP Points', description: 'Mais fáceis e rápidos primeiro — maximize kills por hora.',   emoji: '🎯' },
+  { mode: 'best-drops',    label: 'Melhores Drops',    description: 'Foca nos MVPs com cards de alto valor.',                      emoji: '💎' },
+  { mode: 'fast-rotation', label: 'Rotação Rápida',    description: 'Respawn curto em primeiro — grupo sempre em movimento.',      emoji: '⚡' },
+  { mode: 'group-hunt',    label: 'Caçada em Grupo',   description: 'MVPs que valem mobilizar o grupo inteiro.',                   emoji: '🛡️' },
 ]
